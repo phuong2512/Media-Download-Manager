@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:media_download_manager/models/media.dart';
+import 'package:media_download_manager/utils/format.dart';
 
 class AudioTab extends StatelessWidget {
   final List audioList;
@@ -31,7 +32,7 @@ class AudioTab extends StatelessWidget {
                     style: const TextStyle(color: Colors.white),
                   ),
                   subtitle: Text(
-                    "${audio.size}Mb | ${audio.duration} | ${audio.path.split('.').last} ",
+                    "${formatBytes(audio.size)} | ${audio.duration} | ${audio.path.split('.').last}",
                   ),
                   onTap: () {
                     Navigator.pop(context, audio);

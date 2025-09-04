@@ -1,58 +1,18 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:media_download_manager/models/media.dart';
+import 'package:media_download_manager/services/media_scanner.dart';
 
 class MediaController extends ChangeNotifier {
   MediaController() {
-    _libraryMediaList = [
-      Media(
-        path: "audio/audio1.mp3",
-        duration: "05:00",
-        size: 15,
-        lastModified: DateTime.parse('2025-09-15 14:30:25'),
-        type: "Audio",
-      ),
-      Media(
-        path: "audio/audio2.mp3",
-        duration: "00:50",
-        size: 50,
-        lastModified: DateTime.parse('2025-09-15 15:30:25'),
-        type: "Audio",
-      ),
-      Media(
-        path: "audio/audio3.mp3",
-        duration: "03:05",
-        size: 20,
-        lastModified: DateTime.parse('2025-09-15 14:30:25'),
-        type: "Audio",
-      ),
-      Media(
-        path: "video/video1.mp4",
-        duration: "05:00",
-        size: 50,
-        lastModified: DateTime.parse('2025-09-14 14:00:25'),
-        type: "Video",
-      ),
-      Media(
-        path: "video/video2.mp4",
-        duration: "14:05",
-        size: 125,
-        lastModified: DateTime.parse('2025-09-15 17:23:25'),
-        type: "Video",
-      ),
-      Media(
-        path: "video/video3.mp4",
-        duration: "03:20",
-        size: 300,
-        lastModified: DateTime.parse('2025-08-14 14:00:25'),
-        type: "Video",
-      ),
-    ];
+    _libraryMediaList = [];
     _homeMediaList = [];
   }
 
   late List<Media> _libraryMediaList;
   late List<Media> _homeMediaList;
   bool _isSortNewestFirst = true;
+  final MediaScannerService _scanner = MediaScannerService();
 
   List<Media> get libraryMediaList => _libraryMediaList;
 
@@ -83,34 +43,55 @@ class MediaController extends ChangeNotifier {
     }
   }
 
-  void deleteByPath(String path) {
-    _libraryMediaList.removeWhere((m) => m.path == path);
-    _homeMediaList.removeWhere((m) => m.path == path);
-    notifyListeners();
+  Future<bool> deleteByPath(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+      _libraryMediaList.removeWhere((m) => m.path == path);
+      _homeMediaList.removeWhere((m) => m.path == path);
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  void rename(Media target, String newName) {
+  Future<bool> rename(Media target, String newName) async {
     final index = _libraryMediaList.indexWhere((m) => m.path == target.path);
-    if (index == -1) return;
+    if (index == -1) return false;
     final oldMedia = _libraryMediaList[index];
-    final pathParts = oldMedia.path.split('/');
-    final extension = pathParts.last.split('.').last;
-    pathParts[pathParts.length - 1] = '$newName.$extension';
-    final newPath = pathParts.join('/');
-    final updated = Media(
-      path: newPath,
-      duration: oldMedia.duration,
-      size: oldMedia.size,
-      lastModified: oldMedia.lastModified,
-      type: oldMedia.type,
-    );
-    _libraryMediaList[index] = updated;
+    try {
+      final oldFile = File(oldMedia.path);
+      final directoryPath = oldFile.parent.path;
+      final extension = oldMedia.path.split('.').last;
+      final newPath = '$directoryPath/$newName.$extension';
 
-    final homeIndex = _homeMediaList.indexWhere((m) => m.path == target.path);
-    if (homeIndex != -1) {
-      _homeMediaList[homeIndex] = updated;
+      if (await oldFile.exists()) {
+        await oldFile.rename(newPath);
+      }
+
+      final updatedStat = await File(newPath).stat();
+
+      final updated = Media(
+        path: newPath,
+        duration: oldMedia.duration,
+        size: updatedStat.size,
+        lastModified: updatedStat.modified,
+        type: oldMedia.type,
+      );
+
+      _libraryMediaList[index] = updated;
+      final homeIndex = _homeMediaList.indexWhere((m) => m.path == target.path);
+      if (homeIndex != -1) {
+        _homeMediaList[homeIndex] = updated;
+      }
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return false;
     }
-    notifyListeners();
   }
 
   void sortToggleByLastModified() {
@@ -120,6 +101,12 @@ class MediaController extends ChangeNotifier {
           : b.lastModified.compareTo(a.lastModified),
     );
     _isSortNewestFirst = !_isSortNewestFirst;
+    notifyListeners();
+  }
+
+  Future<void> scanLibrary() async {
+    final scanned = await _scanner.scanAll();
+    _libraryMediaList = scanned;
     notifyListeners();
   }
 }

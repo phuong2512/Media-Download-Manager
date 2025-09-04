@@ -3,6 +3,7 @@ import 'package:media_download_manager/controllers/media_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:media_download_manager/models/media.dart';
 import 'package:media_download_manager/views/load_media/load_media_screen.dart';
+import 'package:media_download_manager/utils/format.dart';
 import 'package:media_download_manager/widgets/bottom_sheets/media_options_bottom_sheet.dart';
 import 'package:media_download_manager/widgets/dialogs/delete_media_dialog.dart';
 import 'package:media_download_manager/widgets/dialogs/rename_media_dialog.dart';
@@ -91,13 +92,13 @@ class _HomeScreenState extends State<HomeScreen> {
       final confirmed = await showDeleteMediaDialog(context, media);
       if (!mounted) return;
       if (confirmed == true) {
-        context.read<MediaController>().deleteByPath(media.path);
+        await context.read<MediaController>().deleteByPath(media.path);
       }
     } else if (action == 'rename') {
       final newName = await showRenameMediaDialog(context, media);
       if (!mounted) return;
       if (newName != null && newName.isNotEmpty) {
-        context.read<MediaController>().rename(media, newName);
+        await context.read<MediaController>().rename(media, newName);
       }
     }
   }
@@ -131,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(color: Colors.white),
               ),
               subtitle: Text(
-                "${media.size}Mb | ${media.duration} | ${media.path.split('.').last} ",
+                "${formatBytes(media.size)} | ${media.duration} | ${media.path.split('.').last}",
               ),
               onLongPress: () => _handleMediaOptions(media),
               trailing: IconButton(

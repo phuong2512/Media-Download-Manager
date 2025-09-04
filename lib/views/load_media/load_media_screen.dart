@@ -25,6 +25,14 @@ class _LoadMediaScreenState extends State<LoadMediaScreen> {
   @override
   void initState() {
     super.initState();
+    Future.microtask(() async {
+      if (!mounted) return;
+      final ctrl = context.read<MediaController>();
+      if (ctrl.libraryMediaList.isEmpty) {
+        await ctrl.scanLibrary();
+        if (mounted) setState(() {});
+      }
+    });
   }
 
   @override
@@ -50,14 +58,14 @@ class _LoadMediaScreenState extends State<LoadMediaScreen> {
       final confirmed = await showDeleteMediaDialog(context, media);
       if (!mounted) return;
       if (confirmed == true) {
-        context.read<MediaController>().deleteByPath(media.path);
+        await context.read<MediaController>().deleteByPath(media.path);
         setState(() {});
       }
     } else if (action == 'rename') {
       final newName = await showRenameMediaDialog(context, media);
       if (!mounted) return;
       if (newName != null && newName.isNotEmpty) {
-        context.read<MediaController>().rename(media, newName);
+        await context.read<MediaController>().rename(media, newName);
         setState(() {});
       }
     }
